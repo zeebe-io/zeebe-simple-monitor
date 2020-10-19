@@ -15,24 +15,30 @@
  */
 package io.zeebe.monitor;
 
-import io.zeebe.spring.client.EnableZeebeClient;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 import org.springframework.data.web.config.EnableSpringDataWebSupport;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
+import io.zeebe.monitor.zeebe.ZeebeHazelcastSourceConfiguration;
+import io.zeebe.monitor.zeebe.ZeebeKafkaJsonSourceConfiguration;
+import io.zeebe.monitor.zeebe.ZeebeKafkaProtobufSourceConfiguration;
+import io.zeebe.spring.client.EnableZeebeClient;
 
 @SpringBootApplication
 @EnableZeebeClient
 @EnableScheduling
 @EnableAsync
 @EnableSpringDataWebSupport
+@Import({ZeebeHazelcastSourceConfiguration.class, ZeebeKafkaJsonSourceConfiguration.class, ZeebeKafkaProtobufSourceConfiguration.class})
 public class ZeebeSimpleMonitorApp {
 
   public static void main(String... args) {

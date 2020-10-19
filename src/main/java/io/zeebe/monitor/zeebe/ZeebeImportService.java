@@ -1,7 +1,12 @@
 package io.zeebe.monitor.zeebe;
 
 import com.hazelcast.core.HazelcastInstance;
+
 import io.zeebe.exporter.proto.Schema;
+import io.zeebe.exporter.source.ProtobufSource;
+import io.zeebe.exporter.source.ProtobufSourceConnector;
+import io.zeebe.exporter.source.hazelcast.HazelcastSource;
+import io.zeebe.exporter.source.hazelcast.HazelcastSourceConnector;
 import io.zeebe.hazelcast.connect.java.ZeebeHazelcast;
 import io.zeebe.monitor.entity.ElementInstanceEntity;
 import io.zeebe.monitor.entity.HazelcastConfig;
@@ -36,12 +41,13 @@ import io.zeebe.protocol.record.intent.WorkflowInstanceIntent;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
 @Component
-public class ZeebeImportService {
+public class ZeebeImportService implements ProtobufSourceConnector, HazelcastSourceConnector {
 
   @Autowired private WorkflowRepository workflowRepository;
   @Autowired private WorkflowInstanceRepository workflowInstanceRepository;
@@ -57,55 +63,63 @@ public class ZeebeImportService {
 
   @Autowired private HazelcastConfigRepository hazelcastConfigRepository;
 
-  public ZeebeHazelcast importFrom(HazelcastInstance hazelcast) {
+  private HazelcastConfig getHazelcastConfig() {
+      
+    return hazelcastConfigRepository
+      .findById("cfg")
+      .orElseGet(
+        () -> {
+          final var config = new HazelcastConfig();
+          config.setId("cfg");
+          config.setSequence(-1);
+          return config;
+        });
+  }
 
-    final var hazelcastConfig =
-        hazelcastConfigRepository
-            .findById("cfg")
-            .orElseGet(
-                () -> {
-                  final var config = new HazelcastConfig();
-                  config.setId("cfg");
-                  config.setSequence(-1);
-                  return config;
-                });
+  public void connectTo(ProtobufSource source) {
+    source.addDeploymentListener(
+      record ->
+          withKey(record, Schema.DeploymentRecord::getMetadata, this::importDeployment));
+    source.addWorkflowInstanceListener(
+      record ->
+          withKey(
+              record,
+              Schema.WorkflowInstanceRecord::getMetadata,
+              this::importWorkflowInstance));
+              source.addIncidentListener(
+      record -> withKey(record, Schema.IncidentRecord::getMetadata, this::importIncident));
+      source.addJobListener(
+      record -> withKey(record, Schema.JobRecord::getMetadata, this::importJob));
+      source.addVariableListener(
+      record -> withKey(record, Schema.VariableRecord::getMetadata, this::importVariable));
+      source.addTimerListener(
+      record -> withKey(record, Schema.TimerRecord::getMetadata, this::importTimer));
+      source.addMessageListener(
+      record -> withKey(record, Schema.MessageRecord::getMetadata, this::importMessage));
+      source.addMessageSubscriptionListener(this::importMessageSubscription);
+    source.addMessageStartEventSubscriptionListener(this::importMessageStartEventSubscription);
+  }
+    
+  public void connectTo(HazelcastSource source) {
 
-    final var builder =
-        ZeebeHazelcast.newBuilder(hazelcast)
-            .addDeploymentListener(
-                record ->
-                    withKey(record, Schema.DeploymentRecord::getMetadata, this::importDeployment))
-            .addWorkflowInstanceListener(
-                record ->
-                    withKey(
-                        record,
-                        Schema.WorkflowInstanceRecord::getMetadata,
-                        this::importWorkflowInstance))
-            .addIncidentListener(
-                record -> withKey(record, Schema.IncidentRecord::getMetadata, this::importIncident))
-            .addJobListener(
-                record -> withKey(record, Schema.JobRecord::getMetadata, this::importJob))
-            .addVariableListener(
-                record -> withKey(record, Schema.VariableRecord::getMetadata, this::importVariable))
-            .addTimerListener(
-                record -> withKey(record, Schema.TimerRecord::getMetadata, this::importTimer))
-            .addMessageListener(
-                record -> withKey(record, Schema.MessageRecord::getMetadata, this::importMessage))
-            .addMessageSubscriptionListener(this::importMessageSubscription)
-            .addMessageStartEventSubscriptionListener(this::importMessageStartEventSubscription)
-            .postProcessListener(
-                sequence -> {
-                  hazelcastConfig.setSequence(sequence);
-                  hazelcastConfigRepository.save(hazelcastConfig);
-                });
+    source.postProcessListener(
+      sequence -> {
+        var hazelcastConfig = getHazelcastConfig();
+        hazelcastConfig.setSequence(sequence);
+        hazelcastConfigRepository.save(hazelcastConfig);
+      });
+  }
+
+  @Override
+  public Optional<Long> startPosition() {
+    var hazelcastConfig = getHazelcastConfig();
 
     if (hazelcastConfig.getSequence() >= 0) {
-      builder.readFrom(hazelcastConfig.getSequence());
+      return Optional.of(hazelcastConfig.getSequence());
     } else {
-      builder.readFromHead();
+      return Optional.empty();
     }
 
-    return builder.build();
   }
 
   private <T> void withKey(

@@ -23,8 +23,13 @@
 
         <spring.boot.version>2.3.3.RELEASE</spring.boot.version>
         <hazelcast.exporter.version>0.9.1</hazelcast.exporter.version>
+        <kafka.exporter.version>2.1.0-protobuf-SNAPSHOT</kafka.exporter.version>
+
         <!-- pin Hazelcast version because of spring-boot-dependencies -->
         <version.hazelcast>4.0.3</version.hazelcast>
+
+        <!-- https://stackoverflow.com/questions/42444011/mojofailureexception-noclassdeffound-when-running-test-in-maven-springboot-pro -->
+        <plugin.version.failsafe>2.18.1</plugin.version.failsafe>
 
         <!-- release parent settings -->
         <version.java>11</version.java>
@@ -64,17 +69,41 @@
             </dependency>
 
             <dependency>
-                <groupId>io.zeebe.hazelcast</groupId>
-                <artifactId>zeebe-hazelcast-connector</artifactId>
-                <version>${hazelcast.exporter.version}</version>
+              <groupId>io.zeebe</groupId>
+              <artifactId>zeebe-exporter-source</artifactId>
+              <version>0.1.0-SNAPSHOT</version>
             </dependency>
-
+        
             <dependency>
                 <groupId>com.h2database</groupId>
                 <artifactId>h2</artifactId>
                 <version>1.4.200</version>
             </dependency>
 
+            <dependency>
+              <groupId>io.zeebe</groupId>
+              <artifactId>zeebe-kafka-exporter-serde</artifactId>
+              <version>${kafka.exporter.version}</version>
+            </dependency>
+        
+            <dependency>
+              <groupId>org.testcontainers</groupId>
+              <artifactId>testcontainers</artifactId>
+              <version>1.14.3</version>
+            </dependency>
+      
+            <dependency>
+              <groupId>org.testcontainers</groupId>
+              <artifactId>kafka</artifactId>
+              <version>1.14.3</version>
+            </dependency>
+      
+            <dependency>
+              <groupId>io.zeebe</groupId>
+              <artifactId>zeebe-test-container</artifactId>
+              <version>0.33.0</version>
+            </dependency>
+      
         </dependencies>
     </dependencyManagement>
 
@@ -113,14 +142,14 @@
         </dependency>
 
         <dependency>
-            <groupId>io.zeebe.hazelcast</groupId>
-            <artifactId>zeebe-hazelcast-connector</artifactId>
+          <groupId>io.zeebe</groupId>
+          <artifactId>zeebe-exporter-source</artifactId>
         </dependency>
 
         <dependency>
-            <groupId>com.hazelcast</groupId>
-            <artifactId>hazelcast</artifactId>
-            <version>${version.hazelcast}</version>
+          <groupId>com.hazelcast</groupId>
+          <artifactId>hazelcast</artifactId>
+          <version>${version.hazelcast}</version>
         </dependency>
 
         <dependency>
@@ -178,6 +207,13 @@
             <scope>test</scope>
         </dependency>
 
+        <dependency>
+          <groupId>org.awaitility</groupId>
+          <artifactId>awaitility</artifactId>
+          <version>4.0.2</version>
+          <scope>test</scope>
+        </dependency>
+    
         <!-- hot swapping, live reload -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -185,6 +221,61 @@
             <optional>true</optional>
         </dependency>
 
+        <!-- test containers for IT -->
+
+        <dependency>
+          <groupId>org.testcontainers</groupId>
+          <artifactId>testcontainers</artifactId>
+          <scope>test</scope>
+        </dependency>
+    
+        <dependency>
+          <groupId>org.testcontainers</groupId>
+          <artifactId>kafka</artifactId>
+          <scope>test</scope>
+        </dependency>
+    
+        <dependency>
+          <groupId>io.zeebe</groupId>
+          <artifactId>zeebe-test-container</artifactId>
+          <scope>test</scope>
+        </dependency>
+    
+        <dependency>
+          <groupId>io.zeebe</groupId>
+          <artifactId>zeebe-protocol-asserts</artifactId>
+          <scope>test</scope>
+        </dependency>
+
+        <dependency>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-starter-test</artifactId>
+          <scope>test</scope>
+        </dependency>
+    
+        <dependency>
+          <groupId>mysql</groupId>
+          <artifactId>mysql-connector-java</artifactId>
+          <version>8.0.15</version>
+        </dependency>
+        
+        <dependency>
+          <groupId>org.apache.kafka</groupId>
+          <artifactId>kafka-clients</artifactId>
+        </dependency>
+
+        <dependency>
+          <groupId>com.github.daniel-shuy</groupId>
+          <artifactId>kafka-protobuf-serde</artifactId>
+          <version>2.2.0</version>
+          <exclusions>
+            <exclusion>
+              <groupId>org.apache.kafka</groupId>
+              <artifactId>kafka-clients</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+    
     </dependencies>
 
     <build>
@@ -254,25 +345,63 @@
                         <goals>
                             <goal>copy</goal>
                         </goals>
+                        <configuration>
+                          <artifactItems>
+                              <artifactItem>
+                                  <groupId>io.zeebe.hazelcast</groupId>
+                                  <artifactId>zeebe-hazelcast-exporter</artifactId>
+                                  <version>${hazelcast.exporter.version}</version>
+                                  <type>jar</type>
+                                  <classifier>jar-with-dependencies</classifier>
+                                  <overWrite>true</overWrite>
+                                  <outputDirectory>${project.build.directory}/exporter</outputDirectory>
+                                  <destFileName>zeebe-hazelcast-exporter.jar</destFileName>
+                              </artifactItem>
+                          </artifactItems>
+                          <outputDirectory>${project.build.directory}/libs</outputDirectory>
+                          <overWriteReleases>false</overWriteReleases>
+                          <overWriteSnapshots>true</overWriteSnapshots>
+                      </configuration>
                     </execution>
-                </executions>
-                <configuration>
-                    <artifactItems>
-                        <artifactItem>
-                            <groupId>io.zeebe.hazelcast</groupId>
-                            <artifactId>zeebe-hazelcast-exporter</artifactId>
-                            <version>${hazelcast.exporter.version}</version>
+                    <execution>
+                      <id>copy-pre-integration-test</id>
+                      <phase>pre-integration-test</phase>
+                      <goals>
+                        <goal>copy</goal>
+                      </goals>
+                      <configuration>
+                        <artifactItems>
+                          <artifactItem>
+                            <groupId>io.zeebe</groupId>
+                            <artifactId>zeebe-kafka-exporter</artifactId>
+                            <version>${kafka.exporter.version}</version>
                             <type>jar</type>
                             <classifier>jar-with-dependencies</classifier>
                             <overWrite>true</overWrite>
-                            <outputDirectory>${project.build.directory}/exporter</outputDirectory>
-                            <destFileName>zeebe-hazelcast-exporter.jar</destFileName>
-                        </artifactItem>
-                    </artifactItems>
-                    <outputDirectory>${project.build.directory}/libs</outputDirectory>
-                    <overWriteReleases>false</overWriteReleases>
-                    <overWriteSnapshots>true</overWriteSnapshots>
-                </configuration>
+                            <outputDirectory>${project.build.directory}/test-classes</outputDirectory>
+                            <destFileName>zeebe-kafka-exporter.jar</destFileName>
+                          </artifactItem>
+                        </artifactItems>
+                        <overWriteReleases>false</overWriteReleases>
+                        <overWriteSnapshots>true</overWriteSnapshots>
+                      </configuration>
+                    </execution>
+                </executions>
+
+            </plugin>
+
+            <plugin>
+              <groupId>org.apache.maven.plugins</groupId>
+              <artifactId>maven-failsafe-plugin</artifactId>
+              <version>${plugin.version.failsafe}</version>
+              <executions>
+                <execution>
+                  <goals>
+                    <goal>integration-test</goal>
+                    <goal>verify</goal>
+                  </goals>
+                </execution>
+              </executions>
             </plugin>
 
         </plugins>
