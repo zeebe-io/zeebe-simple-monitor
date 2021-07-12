@@ -44,3 +44,9 @@ logging:
     io.zeebe: INFO
     io.zeebe.monitor: DEBUG
     com.hazelcast: WARN
+
+white-label:
+  logo.path: img/logo.png
+  custom.title: Zeebe Simple Monitor
+  custom.css.path: css/custom.css
+  custom.js.path: js/custom.js

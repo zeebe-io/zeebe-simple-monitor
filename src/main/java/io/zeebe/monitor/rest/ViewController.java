@@ -69,6 +69,10 @@ public class ViewController {
   private static final List<String> JOB_COMPLETED_INTENTS = Arrays.asList("completed", "canceled");
 
   private final String basePath;
+  private final String logoPath;
+  private final String customCssPath;
+  private final String customJsPath;
+  private final String customTitle;
 
   @Autowired private ProcessRepository processRepository;
   @Autowired private ProcessInstanceRepository processInstanceRepository;
@@ -81,13 +85,21 @@ public class ViewController {
   @Autowired private VariableRepository variableRepository;
   @Autowired private ErrorRepository errorRepository;
 
-  public ViewController(@Value("${server.servlet.context-path}") final String basePath) {
+  public ViewController(@Value("${server.servlet.context-path}") final String basePath,
+                        @Value("${white-label.logo.path}") final String logoPath,
+                        @Value("${white-label.custom.title}") final String customTitle,
+                        @Value("${white-label.custom.css.path}") final String customCssPath,
+                        @Value("${white-label.custom.js.path}") final String customJsPath){
     this.basePath = basePath.endsWith("/") ? basePath : basePath + "/";
+    this.logoPath = logoPath;
+    this.customTitle = customTitle;
+    this.customCssPath = customCssPath;
+    this.customJsPath = customJsPath;
   }
 
   @GetMapping("/")
   public String index(final Map<String, Object> model, final Pageable pageable) {
-    addContextPathToModel(model);
+    addCommonVariablesToModel(model);
     return processList(model, pageable);
   }
 
@@ -105,7 +117,7 @@ public class ViewController {
     model.put("processes", processes);
     model.put("count", count);
 
-    addContextPathToModel(model);
+    addCommonVariablesToModel(model);
     addPaginationToModel(model, pageable, count);
 
     return "process-list-view";
@@ -168,7 +180,7 @@ public class ViewController {
     final var bpmn = Bpmn.readModelFromStream(resourceAsStream);
     model.put("instance.bpmnElementInfos", getBpmnElementInfos(bpmn));
 
-    addContextPathToModel(model);
+    addCommonVariablesToModel(model);
     addPaginationToModel(model, pageable, count);
 
     return "process-detail-view";
@@ -244,7 +256,7 @@ public class ViewController {
     model.put("instances", instances);
     model.put("count", count);
 
-    addContextPathToModel(model);
+    addCommonVariablesToModel(model);
     addPaginationToModel(model, pageable, count);
 
     return "instance-list-view";
@@ -266,7 +278,7 @@ public class ViewController {
 
     model.put("instance", toInstanceDto(instance));
 
-    addContextPathToModel(model);
+    addCommonVariablesToModel(model);
 
     return "instance-detail-view";
   }
@@ -668,7 +680,7 @@ public class ViewController {
     model.put("incidents", incidents);
     model.put("count", count);
 
-    addContextPathToModel(model);
+    addCommonVariablesToModel(model);
     addPaginationToModel(model, pageable, count);
 
     return "incident-list-view";
@@ -715,7 +727,7 @@ public class ViewController {
     model.put("jobs", dtos);
     model.put("count", count);
 
-    addContextPathToModel(model);
+    addCommonVariablesToModel(model);
     addPaginationToModel(model, pageable, count);
 
     return "job-list-view";
@@ -750,7 +762,7 @@ public class ViewController {
     model.put("messages", dtos);
     model.put("count", count);
 
-    addContextPathToModel(model);
+    addCommonVariablesToModel(model);
     addPaginationToModel(model, pageable, count);
 
     return "message-list-view";
@@ -770,7 +782,7 @@ public class ViewController {
     model.put("errors", dtos);
     model.put("count", count);
 
-    addContextPathToModel(model);
+    addCommonVariablesToModel(model);
     addPaginationToModel(model, pageable, count);
 
     return "error-list-view";
@@ -846,8 +858,20 @@ public class ViewController {
     return resource.replaceAll("`", "\"");
   }
 
+  private void addCommonVariablesToModel(final Map<String, Object> model) {
+    addContextPathToModel(model);
+    addWhitelabelingOptionsToModel(model);
+  }
+
   private void addContextPathToModel(final Map<String, Object> model) {
     model.put("context-path", basePath);
+  }
+
+  private void addWhitelabelingOptionsToModel(final Map<String, Object> model) {
+    model.put("logo-path", logoPath);
+    model.put("custom-css-path", customCssPath);
+    model.put("custom-js-path", customJsPath);
+    model.put("custom-title", customTitle);
   }
 
   private void addPaginationToModel(

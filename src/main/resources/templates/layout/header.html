@@ -5,7 +5,7 @@
     <meta http-equiv=X-UA-Compatible content="IE=edge">
     <meta name=viewport content="width=device-width,initial-scale=1">
 
-    <title> Zeebe Simple Monitor </title>
+    <title>{{custom-title}}</title>
 
     <!-- bpmn-js viewer -->
     <link type="text/css" rel="stylesheet" href="{{context-path}}css/modeler.css"/>
@@ -14,6 +14,7 @@
     <link rel="stylesheet" type="text/css" href="{{context-path}}css/bootstrap.min.css"/>
 
     <link rel="stylesheet" type="text/css" href="{{context-path}}css/app.css"/>
+    <link rel="stylesheet" type="text/css" href="{{context-path}}{{custom-css-path}}"/>
 
     <link rel=icon href="{{context-path}}img/favicon.ico">
 
@@ -23,8 +24,8 @@
 
 <nav class="navbar navbar-expand-md navbar-light bg-white mb-2 top-nav-border">
     <a class="navbar-brand" href="{{context-path}}">
-        <img src="{{context-path}}img/logo.png" width="40" alt="Logo">
-        <span class="h3">Zeebe Simple Monitor</span>
+        <img src="{{context-path}}{{logo-path}}" height="36" alt="Logo">
+        <span id="header-title" class="h3">{{custom-title}}</span>
     </a>
 
     <div class="collapse navbar-collapse">

@@ -102,6 +102,19 @@ server:
 
 It is then available under http://localhost:8082/monitor.
 
+#### change look & feel, a.k.a. white-labeling
+
+You can change the look & feel of Zeebe Simple Monitor to match your own logo
+or alter the background color like for example: test=green, prod=red.
+These options can be adopted.
+
+```
+- white-label.logo.path=img/logo.png
+- white-label.custom.title=Zeebe Simple Monitor
+- white-label.custom.css.path=css/custom.css
+- white-label.custom.js.path=js/custom.js
+```
+
 #### Change the Database
 
 For example, using PostgreSQL:
